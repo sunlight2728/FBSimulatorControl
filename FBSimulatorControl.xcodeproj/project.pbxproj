@@ -121,6 +121,10 @@
 		AAC241241BB3113F0054570C /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAC241231BB3113F0054570C /* AppKit.framework */; };
 		AAC241261BB311690054570C /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAC241251BB311690054570C /* ApplicationServices.framework */; };
 		AAC241281BB311970054570C /* FBSimulatorWindowTilingTests.m in Sources */ = {isa = PBXBuildFile; fileRef = AAC241271BB311970054570C /* FBSimulatorWindowTilingTests.m */; settings = {ASSET_TAGS = (); }; };
+		AAE0F8F11BBC5157008909F5 /* FBSimulatorControl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1DD70E291A4B50E500000000 /* FBSimulatorControl.framework */; };
+		AAE0F8F81BBC519B008909F5 /* Arguments.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE0F8F41BBC519B008909F5 /* Arguments.swift */; settings = {ASSET_TAGS = (); }; };
+		AAE0F8FA1BBC519B008909F5 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE0F8F71BBC519B008909F5 /* main.swift */; settings = {ASSET_TAGS = (); }; };
+		AAE0F8FF1BBC533C008909F5 /* FBSimulatorControl.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1DD70E291A4B50E500000000 /* FBSimulatorControl.framework */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E7A30F041AC72D1E00000000 /* DVTiPhoneSimulatorRemoteClient.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1DD70E291AC72D1E00000000 /* DVTiPhoneSimulatorRemoteClient.framework */; };
 		E7A30F0476B173B900000000 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1DD70E2976B173B900000000 /* Cocoa.framework */; };
 		E7A30F04A6018C7A00000000 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1DD70E29A6018C7A00000000 /* CoreGraphics.framework */; };
@@ -130,6 +134,13 @@
 
 /* Begin PBXContainerItemProxy section */
 		AA819DB81B9FB40D002F58CA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 96C84793390C419500000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E66DC04E390C419500000000;
+			remoteInfo = FBSimulatorControl;
+		};
+		AAE0F8FD1BBC5332008909F5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 96C84793390C419500000000 /* Project object */;
 			proxyType = 1;
@@ -146,6 +157,16 @@
 			dstSubfolderSpec = 10;
 			files = (
 				AAC083781B9FBA7600451648 /* FBSimulatorControl.framework in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAE0F8FB1BBC530E008909F5 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 12;
+			dstPath = Frameworks;
+			dstSubfolderSpec = 10;
+			files = (
+				AAE0F8FF1BBC533C008909F5 /* FBSimulatorControl.framework in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -843,6 +864,10 @@
 		AAC241231BB3113F0054570C /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		AAC241251BB311690054570C /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
 		AAC241271BB311970054570C /* FBSimulatorWindowTilingTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FBSimulatorWindowTilingTests.m; sourceTree = "<group>"; };
+		AAE0F8E91BBC511E008909F5 /* fbsimctl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = fbsimctl; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAE0F8F41BBC519B008909F5 /* Arguments.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Arguments.swift; sourceTree = "<group>"; };
+		AAE0F8F51BBC519B008909F5 /* fbsimctl-Bridging-Header.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "fbsimctl-Bridging-Header.h"; sourceTree = "<group>"; };
+		AAE0F8F71BBC519B008909F5 /* main.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		C0269E5758A83CA9C72EC922 /* libPods-FBSimulatorControlTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-FBSimulatorControlTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DE0BECC2D4331B5F6BD6224D /* Pods-FBSimulatorControlTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FBSimulatorControlTests.release.xcconfig"; path = "Pods/Target Support Files/Pods-FBSimulatorControlTests/Pods-FBSimulatorControlTests.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -874,6 +899,14 @@
 				AA5696381B9FB7B500A2918F /* DVTFoundation.framework in Frameworks */,
 				AA56963A1B9FB7C800A2918F /* DVTiPhoneSimulatorRemoteClient.framework in Frameworks */,
 				3705DB1E45CFC79099240134 /* libPods-FBSimulatorControlTests.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAE0F8E61BBC511E008909F5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAE0F8F11BBC5157008909F5 /* FBSimulatorControl.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1698,6 +1731,16 @@
 			path = Tiling;
 			sourceTree = "<group>";
 		};
+		AAE0F8EA1BBC511E008909F5 /* fbsimctl */ = {
+			isa = PBXGroup;
+			children = (
+				AAE0F8F41BBC519B008909F5 /* Arguments.swift */,
+				AAE0F8F51BBC519B008909F5 /* fbsimctl-Bridging-Header.h */,
+				AAE0F8F71BBC519B008909F5 /* main.swift */,
+			);
+			path = fbsimctl;
+			sourceTree = "<group>";
+		};
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -1724,6 +1767,7 @@
 			children = (
 				1DD70E291A4B50E500000001 /* FBSimulatorControl.framework */,
 				AA819DB21B9FB40D002F58CA /* FBSimulatorControlTests.xctest */,
+				AAE0F8E91BBC511E008909F5 /* fbsimctl */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1734,6 +1778,7 @@
 				AA48775A1BAC74DC007F7D23 /* PrivateHeaders */,
 				AA83D3E11B9FAC9E00ED75DE /* FBSimulatorControl */,
 				AA819E081B9FB427002F58CA /* FBSimulatorControlTests */,
+				AAE0F8EA1BBC511E008909F5 /* fbsimctl */,
 				B401C97968022A5500000000 /* Frameworks */,
 				B401C979C806358400000000 /* Products */,
 				8761976FDD41A0837469B6AE /* Pods */,
@@ -1824,6 +1869,24 @@
 			productReference = AA819DB21B9FB40D002F58CA /* FBSimulatorControlTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		AAE0F8E81BBC511E008909F5 /* fbsimctl */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AAE0F8F01BBC511E008909F5 /* Build configuration list for PBXNativeTarget "fbsimctl" */;
+			buildPhases = (
+				AAE0F8E51BBC511E008909F5 /* Sources */,
+				AAE0F8E61BBC511E008909F5 /* Frameworks */,
+				AAE0F8FB1BBC530E008909F5 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AAE0F8FE1BBC5332008909F5 /* PBXTargetDependency */,
+			);
+			name = fbsimctl;
+			productName = fbsimctl;
+			productReference = AAE0F8E91BBC511E008909F5 /* fbsimctl */;
+			productType = "com.apple.product-type.tool";
+		};
 		E66DC04E390C419500000000 /* FBSimulatorControl */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "FBSimulatorControl" */;
@@ -1847,10 +1910,14 @@
 		96C84793390C419500000000 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				LastSwiftUpdateCheck = 0700;
 				LastUpgradeCheck = 9999;
 				TargetAttributes = {
 					AA819DB11B9FB40D002F58CA = {
 						CreatedOnToolsVersion = 7.0;
+					};
+					AAE0F8E81BBC511E008909F5 = {
+						CreatedOnToolsVersion = 7.0.1;
 					};
 				};
 			};
@@ -1867,6 +1934,7 @@
 			targets = (
 				E66DC04E390C419500000000 /* FBSimulatorControl */,
 				AA819DB11B9FB40D002F58CA /* FBSimulatorControlTests */,
+				AAE0F8E81BBC511E008909F5 /* fbsimctl */,
 			);
 		};
 /* End PBXProject section */
@@ -1972,6 +2040,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AAE0F8E51BBC511E008909F5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAE0F8F81BBC519B008909F5 /* Arguments.swift in Sources */,
+				AAE0F8FA1BBC519B008909F5 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1979,6 +2056,11 @@
 			isa = PBXTargetDependency;
 			target = E66DC04E390C419500000000 /* FBSimulatorControl */;
 			targetProxy = AA819DB81B9FB40D002F58CA /* PBXContainerItemProxy */;
+		};
+		AAE0F8FE1BBC5332008909F5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E66DC04E390C419500000000 /* FBSimulatorControl */;
+			targetProxy = AAE0F8FD1BBC5332008909F5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -2353,6 +2435,121 @@
 			};
 			name = Release;
 		};
+		AAE0F8ED1BBC511E008909F5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks @executable_path/Frameworks";
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "$SRCROOT/fbsimctl/fbsimctl-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AAE0F8EE1BBC511E008909F5 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks @executable_path/Frameworks";
+				MTL_ENABLE_DEBUG_INFO = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "$SRCROOT/fbsimctl/fbsimctl-Bridging-Header.h";
+			};
+			name = Profile;
+		};
+		AAE0F8EF1BBC511E008909F5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks @executable_path/Frameworks";
+				MTL_ENABLE_DEBUG_INFO = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "$SRCROOT/fbsimctl/fbsimctl-Bridging-Header.h";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2385,6 +2582,15 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
+		};
+		AAE0F8F01BBC511E008909F5 /* Build configuration list for PBXNativeTarget "fbsimctl" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAE0F8ED1BBC511E008909F5 /* Debug */,
+				AAE0F8EE1BBC511E008909F5 /* Profile */,
+				AAE0F8EF1BBC511E008909F5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
 		};
 /* End XCConfigurationList section */
 	};
