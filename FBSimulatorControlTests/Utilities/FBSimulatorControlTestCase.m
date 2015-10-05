@@ -31,8 +31,7 @@
 
 - (FBSimulatorManagementOptions)managementOptions
 {
-  return FBSimulatorManagementOptionsDeleteManagedSimulatorsOnFirstStart |
-         FBSimulatorManagementOptionsKillUnmanagedSimulatorsOnFirstStart |
+  return FBSimulatorManagementOptionsKillSpuriousSimulatorsOnFirstStart |
          FBSimulatorManagementOptionsDeleteOnFree;
 }
 
@@ -41,8 +40,6 @@
   FBSimulatorControlConfiguration *configuration = [FBSimulatorControlConfiguration
     configurationWithSimulatorApplication:[FBSimulatorApplication simulatorApplicationWithError:nil]
     deviceSetPath:self.deviceSetPath
-    namePrefix:nil
-    bucket:0
     options:[self managementOptions]];
 
   self.control = [[FBSimulatorControl alloc] initWithConfiguration:configuration];
@@ -51,7 +48,7 @@
 
 - (void)tearDown
 {
-  [self.control.simulatorPool killManagedSimulatorsWithError:nil];
+  [self.control.simulatorPool killAllWithError:nil];
   self.control = nil;
 }
 

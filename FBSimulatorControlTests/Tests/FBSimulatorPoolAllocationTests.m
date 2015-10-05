@@ -17,6 +17,7 @@
 #import <FBSimulatorControl/FBSimulatorApplication.h>
 #import <FBSimulatorControl/FBSimulator.h>
 #import <FBSimulatorControl/FBSimulatorConfiguration.h>
+#import <FBSimulatorControl/FBSimulatorSession.h>
 
 #import "FBSimulatorControlTestCase.h"
 
@@ -26,25 +27,38 @@
 
 @implementation FBSimulatorPoolAllocationTests
 
+- (void)setUp
+{
+  NSError *error = nil;
+  [NSFileManager.defaultManager removeItemAtPath:self.deviceSetPath error:&error];
+  (void)error;
+
+  [super setUp];
+}
+
 - (FBSimulatorManagementOptions)managementOptions
 {
-  return FBSimulatorManagementOptionsDeleteOnFree;
+  return FBSimulatorManagementOptionsDeleteOnFree | FBSimulatorManagementOptionsDeleteAllOnFirstStart;
+}
+
+- (NSString *)deviceSetPath
+{
+  return [NSTemporaryDirectory()
+    stringByAppendingPathComponent:[NSString stringWithFormat:@"%@", NSStringFromClass(self.class)]];
 }
 
 - (void)testReallocatesAndErasesFreedDevice
 {
   FBSimulatorControlConfiguration *controlConfiguration = [FBSimulatorControlConfiguration
     configurationWithSimulatorApplication:[FBSimulatorApplication simulatorApplicationWithError:nil]
-    deviceSetPath:nil
-    namePrefix:nil
-    bucket:0
-    options:FBSimulatorManagementOptionsEraseOnFree];
+    deviceSetPath:self.deviceSetPath
+    options:FBSimulatorManagementOptionsEraseOnFree | FBSimulatorManagementOptionsDeleteAllOnFirstStart];
 
   FBSimulatorControl *control = [[FBSimulatorControl alloc] initWithConfiguration:controlConfiguration];
 
   NSError *error = nil;
   FBSimulatorConfiguration *simulatorConfiguration = FBSimulatorConfiguration.iPhone5;
-  FBManagedSimulator *simulator = [control.simulatorPool allocateSimulatorWithConfiguration:simulatorConfiguration error:&error];
+  FBSimulator *simulator = [control createSessionForSimulatorConfiguration:simulatorConfiguration error:&error].simulator;
   XCTAssertNotNil(simulator);
   XCTAssertNil(error);
 
@@ -54,7 +68,7 @@
   XCTAssertTrue([control.simulatorPool freeSimulator:simulator error:nil]);
   XCTAssertNil(error);
 
-  simulator = [control.simulatorPool allocateSimulatorWithConfiguration:simulatorConfiguration error:&error];
+  simulator = [control createSessionForSimulatorConfiguration:simulatorConfiguration error:&error].simulator;
   XCTAssertNotNil(simulator);
   XCTAssertNil(error);
   XCTAssertEqualObjects(simulatorUUID, simulator.udid);
@@ -68,16 +82,16 @@
 {
   NSError *error = nil;
   FBSimulatorConfiguration *simulatorConfiguration = FBSimulatorConfiguration.iPhone5;
-  FBManagedSimulator *simulator = [self.control.simulatorPool allocateSimulatorWithConfiguration:simulatorConfiguration error:&error];
+  FBSimulator *simulator = [self.control createSessionForSimulatorConfiguration:simulatorConfiguration error:&error].simulator;
   XCTAssertNotNil(simulator);
   XCTAssertNil(error);
 
   NSString *simulatorUUID = simulator.udid;
 
-  XCTAssertTrue([self.control.simulatorPool freeSimulator:simulator error:nil]);
+  XCTAssertTrue([simulator freeFromPoolWithError:nil]);
   XCTAssertNil(error);
 
-  simulator = [self.control.simulatorPool allocateSimulatorWithConfiguration:simulatorConfiguration error:&error];
+  simulator = [self.control createSessionForSimulatorConfiguration:simulatorConfiguration error:&error].simulator;
   XCTAssertNotNil(simulator);
   XCTAssertNil(error);
   XCTAssertNotEqualObjects(simulatorUUID, simulator.udid);
@@ -90,16 +104,16 @@
 {
   NSError *error = nil;
   FBSimulatorConfiguration *simulatorConfiguration = FBSimulatorConfiguration.iPhone5;
-  FBManagedSimulator *simulator = [self.control.simulatorPool allocateSimulatorWithConfiguration:simulatorConfiguration error:&error];
+  FBSimulator *simulator = [self.control createSessionForSimulatorConfiguration:simulatorConfiguration error:&error].simulator;
   XCTAssertNotNil(simulator);
   XCTAssertNil(error);
 
   NSString *simulatorUUID = simulator.udid;
 
-  XCTAssertTrue([self.control.simulatorPool freeSimulator:simulator error:nil]);
+  XCTAssertTrue([simulator freeFromPoolWithError:&error]);
   XCTAssertNil(error);
 
-  NSOrderedSet *uuidSet = [self.control.simulatorPool.allPooledSimulators valueForKey:@"udid"];
+  NSOrderedSet *uuidSet = [self.control.simulatorPool.allSimulators valueForKey:@"udid"];
   XCTAssertFalse([uuidSet containsObject:simulatorUUID]);
 }
 
@@ -111,17 +125,17 @@
   NSMutableSet *simulatorUUIDs = [NSMutableSet set];
 
   for (NSInteger index = 0; index < 4; index++) {
-    FBSimulator *simulator = [self.control.simulatorPool allocateSimulatorWithConfiguration:simulatorConfiguration error:&error];
+    FBSimulator *simulator = [self.control createSessionForSimulatorConfiguration:simulatorConfiguration error:&error].simulator;
     XCTAssertNotNil(simulator);
     XCTAssertNil(error);
     [simulators addObject:simulator];
     [simulatorUUIDs addObject:simulator.udid];
   }
 
-  XCTAssertTrue([self.control.simulatorPool deleteManagedSimulatorsWithError:&error]);
+  XCTAssertTrue([self.control.simulatorPool deleteAllWithError:&error]);
   XCTAssertNil(error);
 
-  NSOrderedSet *uuidSet = [self.control.simulatorPool.allPooledSimulators valueForKey:@"udid"];
+  NSOrderedSet *uuidSet = [self.control.simulatorPool.allSimulators valueForKey:@"udid"];
   [simulatorUUIDs intersectSet:uuidSet.set];
   XCTAssertEqual(simulatorUUIDs.count, 0);
 }

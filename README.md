@@ -72,7 +72,11 @@ For a high level overview:
 - `FBSimulatorApplication` is a wrapper around Applications, you can create them for your own Apps or use `+[FBSimulatorApplication systemApplicationNamed:]` to launch System Apps.
 - `FBApplicationLaunchConfiguration` describes the launch of an Application, it's arguments and environment.
 - `FBSimulatorSessionState` provides a the current state and history of the known state of the Simulator, including the Unix Process IDs of the running Applications and Agents. You can further automate by using command line tools like [`sample(1)`](https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/sample.1.html), [`lldb(1)`](https://developer.apple.com/library/prerelease/mac/documentation/Darwin/Reference/ManPages/man1/lldb.1.html), [`heap(1)`](https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/heap.1.html) and [`instruments(1)`](https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/instruments.1.html).
-- The "Bucket ID" that a pool manages allows multiple processes to manage a subset of simulators, without interfering with the simulators created by other processes. By creating and starting Sessions in separate processes with their own buckets, allows Simulators to be run in parallel. This can be particularly beneficial for running Automated Tests in parallel, since much of the time a Simulator is idling the Host's CPU. Buckets can be re-used 
+
+## Multisim
+`FBSimulatorControl` launches Simulator Applications directly, allowing specific Simulator UDIDs to be targeted. Sets of Devices can be created that exist in a completely separate directory.
+
+Isolating Device Sets allows Simulators to be created and launched on-demand. This isolation allows processes that use the `FBSimulatorControl.framework` to manage independent pools of Simulators, without the need to synchronize access to the allocation mechanism.
 
 ## Contributing
 See the [CONTRIBUTING](CONTRIBUTING) file for how to help out. There's plenty to work on the issues!
