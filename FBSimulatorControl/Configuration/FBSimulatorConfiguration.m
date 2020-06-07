@@ -1,207 +1,44 @@
-/**
- * Copyright (c) 2015-present, Facebook, Inc.
- * All rights reserved.
+/*
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import "FBSimulatorConfiguration.h"
-#import "FBSimulatorConfiguration+Private.h"
 
-#import "FBSimulatorControlStaticConfiguration.h"
+#import <objc/runtime.h>
 
-@implementation FBSimulatorConfigurationNamedDevice_iPhone4s
+#import <FBControlCore/FBControlCoreGlobalConfiguration.h>
 
-- (NSString *)deviceName
-{
-  return @"iPhone 4s";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationNamedDevice_iPhone5
-
-- (NSString *)deviceName
-{
-  return @"iPhone 5";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationNamedDevice_iPhone5s
-
-- (NSString *)deviceName
-{
-  return @"iPhone 5s";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationNamedDevice_iPhone6
-
-- (NSString *)deviceName
-{
-  return @"iPhone 6";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationNamedDevice_iPhone6Plus
-
-- (NSString *)deviceName
-{
-  return @"iPhone 6 Plus";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationNamedDevice_iPad2
-
-- (NSString *)deviceName
-{
-  return @"iPad 2";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationNamedDevice_iPadRetina
-
-- (NSString *)deviceName
-{
-  return @"iPad Retina";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationNamedDevice_iPadAir
-
-- (NSString *)deviceName
-{
-  return @"iPad Air";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationNamedDevice_iPadAir2
-
-- (NSString *)deviceName
-{
-  return @"iPad Air 2";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationOSVersion_7_1
-
-- (NSString *)osVersion
-{
-  return @"7.1";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationOSVersion_8_0
-
-- (NSString *)osVersion
-{
-  return @"8.0";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationOSVersion_8_1
-
-- (NSString *)osVersion
-{
-  return @"8.1";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationOSVersion_8_2
-
-- (NSString *)osVersion
-{
-  return @"8.2";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationOSVersion_8_3
-
-- (NSString *)osVersion
-{
-  return @"8.3";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationOSVersion_8_4
-
-- (NSString *)osVersion
-{
-  return @"8.4";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationOSVersion_9_0
-
-- (NSString *)osVersion
-{
-  return @"9.0";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationScale_25
-
-- (NSString *)scaleString
-{
-  return @"0.25";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationScale_50
-
-- (NSString *)scaleString
-{
-  return @"0.50";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationScale_75
-
-- (NSString *)scaleString
-{
-  return @"0.75";
-}
-
-@end
-
-@implementation FBSimulatorConfigurationScale_100
-
-- (NSString *)scaleString
-{
-  return @"1.00";
-}
-
-@end
+#import "FBSimulatorConfiguration+CoreSimulator.h"
+#import "FBSimulatorControl+PrincipalClass.h"
+#import "FBSimulatorControlFrameworkLoader.h"
 
 @implementation FBSimulatorConfiguration
 
-- (instancetype)copyWithZone:(NSZone *)zone
++ (void)initialize
 {
-  FBSimulatorConfiguration *configuration = [self.class new];
-  configuration.namedDevice = self.namedDevice;
-  configuration.osVersion = self.osVersion;
-  configuration.locale = self.locale;
-  configuration.scale = self.scale;
-  return configuration;
+  [FBSimulatorControlFrameworkLoader.essentialFrameworks loadPrivateFrameworksOrAbort];
+}
+
+#pragma mark Initializers
+
+- (instancetype)initWithNamedDevice:(FBDeviceType *)device os:(FBOSVersion *)os auxillaryDirectory:(NSString *)auxillaryDirectory
+{
+  NSParameterAssert(device);
+  NSParameterAssert(os);
+
+  self = [super init];
+  if (!self) {
+    return nil;
+  }
+
+  _device = device;
+  _os = os;
+  _auxillaryDirectory = auxillaryDirectory;
+
+  return self;
 }
 
 + (instancetype)defaultConfiguration
@@ -209,39 +46,41 @@
   static dispatch_once_t onceToken;
   static FBSimulatorConfiguration *configuration;
   dispatch_once(&onceToken, ^{
-    NSString *sdkVersion = FBSimulatorControlStaticConfiguration.sdkVersion;
-
-    configuration = [FBSimulatorConfiguration new];
-    configuration.namedDevice = [FBSimulatorConfigurationNamedDevice_iPhone5 new];
-    configuration.osVersion = self.class.nameToOSVersion[sdkVersion];
-    configuration.scale = [FBSimulatorConfigurationScale_50 new];
-    NSCAssert(configuration.osVersion, @"Could not get a simulator OS for SDK %@", sdkVersion);
+    configuration = [self makeDefaultConfiguration];
   });
   return configuration;
 }
 
-#pragma mark Accessors
-
-- (NSString *)deviceName
++ (instancetype)makeDefaultConfiguration
 {
-  return self.namedDevice.deviceName;
+  FBDeviceModel model = FBDeviceModeliPhone6;
+  FBDeviceType *device = FBiOSTargetConfiguration.nameToDevice[model];
+  FBOSVersion *os = [FBSimulatorConfiguration newestAvailableOSForDevice:device];
+  NSAssert(
+    os,
+    @"Could not obtain OS for model '%@'. Supported OS Versions for Model %@. All Available OS Versions %@",
+    model,
+    [FBCollectionInformation oneLineDescriptionFromArray:[FBSimulatorConfiguration supportedOSVersionsForDevice:device]],
+    [FBCollectionInformation oneLineDescriptionFromArray:[FBSimulatorConfiguration supportedOSVersions]]
+  );
+  return [[FBSimulatorConfiguration alloc] initWithNamedDevice:device os:os auxillaryDirectory:nil];
 }
 
-- (NSString *)osVersionString
-{
-  return self.osVersion.osVersion;
-}
+#pragma mark NSCopying
 
-- (NSString *)scaleString
+- (instancetype)copyWithZone:(NSZone *)zone
 {
-  return self.scale.scaleString;
+  return [[self.class alloc]
+    initWithNamedDevice:self.device
+    os:self.os
+    auxillaryDirectory:self.auxillaryDirectory];
 }
 
 #pragma mark NSObject
 
 - (NSUInteger)hash
 {
-  return self.deviceName.hash | self.osVersionString.hash | self.locale.hash | self.scaleString.hash;
+  return self.deviceModel.hash ^ self.osVersionString.hash ^ self.auxillaryDirectory.hash;
 }
 
 - (BOOL)isEqual:(FBSimulatorConfiguration *)object
@@ -250,294 +89,130 @@
     return NO;
   }
 
-  return [self.deviceName isEqualToString:object.deviceName] &&
+  return [self.deviceModel isEqualToString:object.deviceModel] &&
          [self.osVersionString isEqualToString:object.osVersionString] &&
-         [self.scaleString isEqualToString:object.scaleString] &&
-         ((self.locale == nil && object.locale == nil) || [self.locale isEqual:object.locale]);
+         (self.auxillaryDirectory == object.auxillaryDirectory || [self.auxillaryDirectory isEqualToString:object.auxillaryDirectory]);
 }
+
+#pragma mark FBDebugDescribeable
 
 - (NSString *)description
 {
   return [NSString stringWithFormat:
-    @"Simulator '%@' | OS Version '%@' | Locale '%@' | Scale '%@'",
-    self.deviceName,
+    @"Device '%@' | OS Version '%@' | Aux Directory %@ | Architecture '%@'",
+    self.deviceModel,
     self.osVersionString,
-    self.locale,
-    self.scaleString
+    self.auxillaryDirectory,
+    self.architecture
   ];
 }
 
-#pragma mark Mutators
-
-+ (instancetype)iPhone4s
+- (NSString *)shortDescription
 {
-  return [self.defaultConfiguration iPhone4s];
+  return [self description];
 }
 
-- (instancetype)iPhone4s
+- (NSString *)debugDescription
 {
-  return [self updateNamedDeviceClass:FBSimulatorConfigurationNamedDevice_iPhone4s.class];
+  return [self description];
 }
 
-+ (instancetype)iPhone5
+#pragma mark FBJSONSerializable
+
+- (NSDictionary *)jsonSerializableRepresentation
 {
-  return [self.defaultConfiguration iPhone5];
+  return @{
+    @"device" : self.deviceModel,
+    @"os" : self.osVersionString,
+    @"aux_directory" : self.auxillaryDirectory ?: NSNull.null,
+    @"architecture" : self.architecture
+  };
 }
 
-- (instancetype)iPhone5
+#pragma mark - Devices
+
++ (instancetype)withDevice:(FBDeviceType *)device
 {
-  return [self updateNamedDeviceClass:FBSimulatorConfigurationNamedDevice_iPhone5.class];
+  return [self.defaultConfiguration withDevice:device];
 }
 
-+ (instancetype)iPhone5s
+- (instancetype)withDevice:(FBDeviceType *)device
 {
-  return [self.defaultConfiguration iPhone5s];
+  NSParameterAssert(device);
+  // Use the current os if compatible
+  FBOSVersion *os = self.os;
+  if ([FBSimulatorConfiguration device:device andOSPairSupported:os]) {
+    return [[FBSimulatorConfiguration alloc] initWithNamedDevice:device os:os auxillaryDirectory:self.auxillaryDirectory];
+  }
+  // Attempt to find the newest OS for this device, otherwise use what we had before.
+  os = [FBSimulatorConfiguration newestAvailableOSForDevice:device] ?: os;
+  return [[FBSimulatorConfiguration alloc] initWithNamedDevice:device os:os auxillaryDirectory:self.auxillaryDirectory];
 }
 
-- (instancetype)iPhone5s
++ (instancetype)withDeviceModel:(FBDeviceModel)model
 {
-  return [self updateNamedDeviceClass:FBSimulatorConfigurationNamedDevice_iPhone5s.class];
+  return [self.defaultConfiguration withDeviceModel:model];
 }
 
-+ (instancetype)iPhone6
+- (instancetype)withDeviceModel:(FBDeviceModel)model
 {
-  return [self.defaultConfiguration iPhone6];
+  FBDeviceType *device = FBiOSTargetConfiguration.nameToDevice[model];
+  device = device ?: [FBDeviceType genericWithName:model];
+  return [self withDevice:device];
 }
 
-- (instancetype)iPhone6
+#pragma mark - OS Versions
+
++ (instancetype)withOS:(FBOSVersion *)os
 {
-  return [self updateNamedDeviceClass:FBSimulatorConfigurationNamedDevice_iPhone6.class];
+  return [self.defaultConfiguration withOS:os];
 }
 
-+ (instancetype)iPhone6Plus
+- (instancetype)withOS:(FBOSVersion *)os
 {
-  return [self.defaultConfiguration iPhone6Plus];
+  NSParameterAssert(os);
+  return [[FBSimulatorConfiguration alloc] initWithNamedDevice:self.device os:os auxillaryDirectory:self.auxillaryDirectory];
 }
 
-- (instancetype)iPhone6Plus
++ (instancetype)withOSNamed:(FBOSVersionName)osName
 {
-  return [self updateNamedDeviceClass:FBSimulatorConfigurationNamedDevice_iPhone6Plus.class];
+  return [self.defaultConfiguration withOSNamed:osName];
 }
 
-+ (instancetype)iPad2
+- (instancetype)withOSNamed:(FBOSVersionName)osName
 {
-  return [self.defaultConfiguration iPad2];
+  FBOSVersion *os = FBiOSTargetConfiguration.nameToOSVersion[osName];
+  os = os ?: [FBOSVersion genericWithName:osName];
+  return [self withOS:os];
 }
 
-- (instancetype)iPad2
-{
-  return [self updateNamedDeviceClass:FBSimulatorConfigurationNamedDevice_iPad2.class];
-}
+#pragma mark Auxillary Directory
 
-+ (instancetype)iPadRetina
+- (instancetype)withAuxillaryDirectory:(NSString *)auxillaryDirectory
 {
-  return [self.defaultConfiguration iPadRetina];
-}
-
-- (instancetype)iPadRetina
-{
-  return [self updateNamedDeviceClass:FBSimulatorConfigurationNamedDevice_iPadRetina.class];
-}
-
-+ (instancetype)iPadAir
-{
-  return [self.defaultConfiguration iPadAir];
-}
-
-- (instancetype)iPadAir
-{
-  return [self updateNamedDeviceClass:FBSimulatorConfigurationNamedDevice_iPadAir.class];
-}
-
-+ (instancetype)iPadAir2
-{
-  return [self.defaultConfiguration iPadAir2];
-}
-
-- (instancetype)iPadAir2
-{
-  return [self updateNamedDeviceClass:FBSimulatorConfigurationNamedDevice_iPadAir2.class];
-}
-
-+ (instancetype)named:(NSString *)deviceType
-{
-  return [self.defaultConfiguration named:deviceType];
-}
-
-- (instancetype)named:(NSString *)deviceType
-{
-  return [self updateNamedDevice:self.class.nameToDevice[deviceType]];
-}
-
-- (instancetype)iOS_7_1
-{
-  return [self updateOSVersionClass:FBSimulatorConfigurationOSVersion_7_1.class];
-}
-
-- (instancetype)iOS_8_0
-{
-  return [self updateOSVersionClass:FBSimulatorConfigurationOSVersion_8_0.class];
-}
-
-- (instancetype)iOS_8_1
-{
-  return [self updateOSVersionClass:FBSimulatorConfigurationOSVersion_8_1.class];
-}
-
-- (instancetype)iOS_8_2
-{
-  return [self updateOSVersionClass:FBSimulatorConfigurationOSVersion_8_2.class];
-}
-
-- (instancetype)iOS_8_3
-{
-  return [self updateOSVersionClass:FBSimulatorConfigurationOSVersion_8_3.class];
-}
-
-- (instancetype)iOS_8_4
-{
-  return [self updateOSVersionClass:FBSimulatorConfigurationOSVersion_8_4.class];
-}
-
-- (instancetype)iOS_9_0
-{
-  return [self updateOSVersionClass:FBSimulatorConfigurationOSVersion_9_0.class];
-}
-
-+ (instancetype)iOS:(NSString *)version
-{
-  return [self.defaultConfiguration iOS:version];
-}
-
-- (instancetype)iOS:(NSString *)version
-{
-  return [self updateOSVersion:self.class.nameToOSVersion[version]];
-}
-
-#pragma mark Scale
-
-- (instancetype)scale25Percent
-{
-  return [self updateScale:[FBSimulatorConfigurationScale_25 new]];
-}
-
-- (instancetype)scale50Percent
-{
-  return [self updateScale:[FBSimulatorConfigurationScale_50 new]];
-}
-
-- (instancetype)scale75Percent
-{
-  return [self updateScale:[FBSimulatorConfigurationScale_75 new]];
-}
-
-- (instancetype)scale100Percent
-{
-  return [self updateScale:[FBSimulatorConfigurationScale_100 new]];
-}
-
-- (instancetype)withLocale:(NSLocale *)locale
-{
-  FBSimulatorConfiguration *configuration = [self copy];
-  configuration.locale = locale;
-  return configuration;
-}
-
-- (instancetype)withLocaleNamed:(NSString *)localeIdentifier
-{
-  return [self withLocale:[NSLocale localeWithLocaleIdentifier:localeIdentifier]];
+  return [[FBSimulatorConfiguration alloc] initWithNamedDevice:self.device os:self.os auxillaryDirectory:self.auxillaryDirectory];
 }
 
 #pragma mark Private
 
-+ (NSDictionary *)nameToDevice
++ (BOOL)device:(FBDeviceType *)device andOSPairSupported:(FBOSVersion *)os
 {
-  static dispatch_once_t onceToken;
-  static NSDictionary *mapping;
-  dispatch_once(&onceToken, ^{
-    NSArray *instances = @[
-     FBSimulatorConfigurationNamedDevice_iPhone4s.new,
-     FBSimulatorConfigurationNamedDevice_iPhone5.new,
-     FBSimulatorConfigurationNamedDevice_iPhone5s.new,
-     FBSimulatorConfigurationNamedDevice_iPhone6.new,
-     FBSimulatorConfigurationNamedDevice_iPhone6Plus.new,
-     FBSimulatorConfigurationNamedDevice_iPad2.new,
-     FBSimulatorConfigurationNamedDevice_iPadRetina.new,
-     FBSimulatorConfigurationNamedDevice_iPadAir.new,
-     FBSimulatorConfigurationNamedDevice_iPadAir2.new
-    ];
-
-    NSMutableDictionary *dictionary = [NSMutableDictionary dictionary];
-    for (id<FBSimulatorConfigurationNamedDevice> device in instances) {
-      dictionary[device.deviceName] = device;
-    }
-    mapping = [dictionary copy];
-  });
-  return mapping;
+  return [os.families containsObject:@(device.family)];
 }
 
-+ (NSDictionary *)nameToOSVersion
+- (FBDeviceModel)deviceModel
 {
-  static dispatch_once_t onceToken;
-  static NSDictionary *mapping;
-  dispatch_once(&onceToken, ^{
-    NSArray *instances = @[
-      FBSimulatorConfigurationOSVersion_7_1.new,
-      FBSimulatorConfigurationOSVersion_8_0.new,
-      FBSimulatorConfigurationOSVersion_8_1.new,
-      FBSimulatorConfigurationOSVersion_8_2.new,
-      FBSimulatorConfigurationOSVersion_8_3.new,
-      FBSimulatorConfigurationOSVersion_8_4.new,
-      FBSimulatorConfigurationOSVersion_9_0.new
-    ];
-
-    NSMutableDictionary *dictionary = [NSMutableDictionary dictionary];
-    for (id<FBSimulatorConfigurationOSVersion> osVersion in instances) {
-      dictionary[osVersion.osVersion] = osVersion;
-    }
-    mapping = [dictionary copy];
-  });
-  return mapping;
+  return self.device.model;
 }
 
-- (instancetype)updateNamedDeviceClass:(Class)class
+- (FBOSVersionName)osVersionString
 {
-  return [self updateNamedDevice:[class new]];
+  return self.os.name;
 }
 
-- (instancetype)updateNamedDevice:(id<FBSimulatorConfigurationNamedDevice>)namedDevice
+- (FBArchitecture)architecture
 {
-  if (!namedDevice) {
-    return nil;
-  }
-  FBSimulatorConfiguration *configuration = [self copy];
-  configuration.namedDevice = namedDevice;
-  return configuration;
-}
-
-- (instancetype)updateOSVersionClass:(Class)class
-{
-  return [self updateOSVersion:[class new]];
-}
-
-- (instancetype)updateOSVersion:(id<FBSimulatorConfigurationOSVersion>)osVersion
-{
-  if (!osVersion) {
-    return nil;
-  }
-  FBSimulatorConfiguration *configuration = [self copy];
-  configuration.osVersion = osVersion;
-  return configuration;
-}
-
-- (instancetype)updateScale:(id<FBSimulatorConfigurationScale>)scale
-{
-  if (!scale) {
-    return nil;
-  }
-  FBSimulatorConfiguration *configuration = [self copy];
-  configuration.scale = scale;
-  return configuration;
+  return self.device.simulatorArchitecture;
 }
 
 @end

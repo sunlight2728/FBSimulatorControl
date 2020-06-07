@@ -1,64 +1,124 @@
-/**
- * Copyright (c) 2015-present, Facebook, Inc.
- * All rights reserved.
+/*
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import "FBSimulator.h"
 #import "FBSimulator+Private.h"
-#import "FBSimulatorPool+Private.h"
 
 #import <CoreSimulator/SimDevice.h>
 #import <CoreSimulator/SimDeviceSet.h>
+#import <CoreSimulator/SimDeviceType.h>
 
+#import <Foundation/Foundation.h>
+
+#import <FBControlCore/FBControlCore.h>
+
+#import "FBAccessibilityFetch.h"
+#import "FBAppleSimctlCommandExecutor.h"
+#import "FBCompositeSimulatorEventSink.h"
+#import "FBMutableSimulatorEventSink.h"
+#import "FBSimulatorAgentCommands.h"
+#import "FBSimulatorApplicationCommands.h"
+#import "FBSimulatorApplicationDataCommands.h"
+#import "FBSimulatorBridgeCommands.h"
 #import "FBSimulatorConfiguration+CoreSimulator.h"
 #import "FBSimulatorConfiguration.h"
 #import "FBSimulatorControlConfiguration.h"
-#import "FBSimulatorPool.h"
-#import "FBTaskExecutor.h"
-#import "NSRunLoop+SimulatorControlAdditions.h"
+#import "FBSimulatorCrashLogCommands.h"
+#import "FBSimulatorDebuggerCommands.h"
+#import "FBSimulatorDiagnostics.h"
+#import "FBSimulatorError.h"
+#import "FBSimulatorEventSink.h"
+#import "FBSimulatorHIDEvent.h"
+#import "FBSimulatorLifecycleCommands.h"
+#import "FBSimulatorLogCommands.h"
+#import "FBSimulatorLoggingEventSink.h"
+#import "FBSimulatorMediaCommands.h"
+#import "FBSimulatorMutableState.h"
+#import "FBSimulatorNotificationEventSink.h"
+#import "FBSimulatorScreenshotCommands.h"
+#import "FBSimulatorSet.h"
+#import "FBSimulatorSettingsCommands.h"
+#import "FBSimulatorVideoRecordingCommands.h"
+#import "FBSimulatorXCTestCommands.h"
 
-NSTimeInterval const FBSimulatorDefaultTimeout = 20;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wprotocol"
+#pragma clang diagnostic ignored "-Wincomplete-implementation"
 
 @implementation FBSimulator
 
-@synthesize processIdentifier = _processIdentifier;
+@synthesize auxillaryDirectory = _auxillaryDirectory;
+@synthesize logger = _logger;
 
-#pragma mark Initializers
+#pragma mark Lifecycle
 
-- (instancetype)init
++ (instancetype)fromSimDevice:(SimDevice *)device configuration:(nullable FBSimulatorConfiguration *)configuration launchdSimProcess:(nullable FBProcessInfo *)launchdSimProcess containerApplicationProcess:(nullable FBProcessInfo *)containerApplicationProcess set:(FBSimulatorSet *)set
+{
+  return [[[FBSimulator alloc]
+    initWithDevice:device
+    configuration:configuration ?: [FBSimulatorConfiguration inferSimulatorConfigurationFromDeviceSynthesizingMissing:device]
+    set:set
+    processFetcher:set.processFetcher
+    auxillaryDirectory:[FBSimulator auxillaryDirectoryFromSimDevice:device configuration:configuration]
+    logger:set.logger
+    reporter:set.reporter]
+    attachEventSinkCompositionWithLaunchdSimProcess:launchdSimProcess containerApplicationProcess:containerApplicationProcess];
+}
+
+- (instancetype)initWithDevice:(SimDevice *)device configuration:(FBSimulatorConfiguration *)configuration set:(FBSimulatorSet *)set processFetcher:(FBSimulatorProcessFetcher *)processFetcher auxillaryDirectory:(NSString *)auxillaryDirectory logger:(id<FBControlCoreLogger>)logger reporter:(id<FBEventReporter>)reporter
 {
   self = [super init];
   if (!self) {
     return nil;
   }
 
-  _processIdentifier = -1;
+  _device = device;
+  _configuration = configuration;
+  _set = set;
+  _processFetcher = processFetcher;
+  _auxillaryDirectory = auxillaryDirectory;
+  _logger = [logger withName:device.UDID.UUIDString];
+  _forwarder = [FBLoggingWrapper
+    wrap:[FBiOSTargetCommandForwarder forwarderWithTarget:self commandClasses:FBSimulator.commandResponders statefulCommands:FBSimulator.statefulCommands]
+    simplifiedNaming:NO
+    eventReporter:reporter
+    logger:nil];
+
   return self;
 }
 
-+ (instancetype)inflateFromSimDevice:(SimDevice *)device configuration:(FBSimulatorControlConfiguration *)configuration
+- (instancetype)attachEventSinkCompositionWithLaunchdSimProcess:(nullable FBProcessInfo *)launchdSimProcess containerApplicationProcess:(nullable FBProcessInfo *)containerApplicationProcess
 {
-  // Attempt to make a Managed Simulator, otherwise this must be an unmanaged one.
-  FBSimulator *simulator = [FBManagedSimulator inflateFromSimDevice:device configuration:configuration];
-  if (simulator) {
-    return simulator;
-  }
+  FBSimulatorNotificationNameEventSink *notificationSink = [FBSimulatorNotificationNameEventSink withSimulator:self];
+  FBSimulatorLoggingEventSink *loggingSink = [FBSimulatorLoggingEventSink withSimulator:self logger:self.logger];
+  FBMutableSimulatorEventSink *mutableSink = [FBMutableSimulatorEventSink new];
+  FBSimulatorDiagnostics *diagnosticsSink = [FBSimulatorDiagnostics withSimulator:self];
 
-  // Create and return an unmanaged one.
-  simulator = [FBSimulator new];
-  simulator.device = device;
-  return simulator;
+  FBCompositeSimulatorEventSink *compositeSink = [FBCompositeSimulatorEventSink withSinks:@[notificationSink, loggingSink, diagnosticsSink, mutableSink]];
+  FBSimulatorMutableState *mutableState = [[FBSimulatorMutableState alloc] initWithLaunchdProcess:launchdSimProcess containerApplication:containerApplicationProcess sink:compositeSink];
+
+  _mutableState = mutableState;
+  _mutableSink = mutableSink;
+  _simulatorDiagnostics = diagnosticsSink;
+
+  return self;
 }
 
-#pragma mark Properties
+#pragma mark FBiOSTarget
 
-- (NSString *)name
+- (NSArray<Class> *)actionClasses
 {
-  return self.device.name;
+  return @[
+    FBAccessibilityFetch.class,
+    FBAgentLaunchConfiguration.class,
+    FBLogTailConfiguration.class,
+    FBSimulatorHIDEvent.class,
+    FBTestLaunchConfiguration.class,
+  ];
 }
 
 - (NSString *)udid
@@ -66,14 +126,89 @@ NSTimeInterval const FBSimulatorDefaultTimeout = 20;
   return self.device.UDID.UUIDString;
 }
 
-- (FBSimulatorState)state
+- (NSString *)name
+{
+  return self.device.name;
+}
+
+- (FBiOSTargetState)state
 {
   return self.device.state;
 }
 
-- (FBSimulatorApplication *)simulatorApplication
+- (FBiOSTargetType)targetType
 {
-  return self.pool.configuration.simulatorApplication;
+  return FBiOSTargetTypeSimulator;
+}
+
+- (FBArchitecture)architecture
+{
+  return self.configuration.device.simulatorArchitecture;
+}
+
+- (FBDeviceType *)deviceType
+{
+  return self.configuration.device;
+}
+
+- (FBOSVersion *)osVersion
+{
+  return self.configuration.os;
+}
+
+- (FBiOSTargetScreenInfo *)screenInfo
+{
+  SimDeviceType *deviceType = self.device.deviceType;
+  return [[FBiOSTargetScreenInfo alloc] initWithWidthPixels:(NSUInteger)deviceType.mainScreenSize.width heightPixels:(NSUInteger)deviceType.mainScreenSize.height scale:deviceType.mainScreenScale];
+}
+
+- (FBiOSTargetDiagnostics *)diagnostics
+{
+  return self.simulatorDiagnostics;
+}
+
+- (dispatch_queue_t)workQueue
+{
+  return dispatch_get_main_queue();
+}
+
+- (dispatch_queue_t)asyncQueue
+{
+  return dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
+}
+
+- (NSDictionary<NSString *, id> *)extendedInformation
+{
+  return @{};
+}
+
+- (NSComparisonResult)compare:(id<FBiOSTarget>)target
+{
+  return FBiOSTargetComparison(self, target);
+}
+
+#pragma mark Properties
+
+- (FBControlCoreProductFamily)productFamily
+{
+  int familyID = self.device.deviceType.productFamilyID;
+  switch (familyID) {
+    case 1:
+      return FBControlCoreProductFamilyiPhone;
+    case 2:
+      return FBControlCoreProductFamilyiPad;
+    case 3:
+      return FBControlCoreProductFamilyAppleTV;
+    case 4:
+      return FBControlCoreProductFamilyAppleWatch;
+    default:
+      return FBControlCoreProductFamilyUnknown;
+  }
+}
+
+- (NSString *)stateString
+{
+  return FBiOSTargetStateStringFromState(self.state);
 }
 
 - (NSString *)dataDirectory
@@ -81,101 +216,41 @@ NSTimeInterval const FBSimulatorDefaultTimeout = 20;
   return self.device.dataPath;
 }
 
-- (NSString *)launchdBootstrapPath
+- (FBProcessInfo *)launchdProcess
 {
-  NSString *expectedPath = [[self.pool.deviceSet.setPath
-    stringByAppendingPathComponent:self.udid]
-    stringByAppendingPathComponent:@"/data/var/run/launchd_bootstrap.plist"];
-
-  if (![NSFileManager.defaultManager fileExistsAtPath:expectedPath]) {
-    return nil;
-  }
-  return expectedPath;
+  return self.mutableState.launchdProcess;
 }
 
-- (NSInteger)launchdSimProcessIdentifier
+- (FBProcessInfo *)containerApplication
 {
-  NSString *bootstrapPath = self.launchdBootstrapPath;
-  if (!bootstrapPath) {
-    return -1;
-  }
-
-  NSInteger processIdentifier = [[[[FBTaskExecutor.sharedInstance
-    taskWithLaunchPath:@"/usr/bin/pgrep" arguments:@[@"-f", bootstrapPath]]
-    startSynchronouslyWithTimeout:5]
-    stdOut]
-    integerValue];
-
-  if (processIdentifier < 2) {
-    return -1;
-  }
-  return processIdentifier;
+  return self.mutableState.containerApplication;
 }
 
-- (NSInteger)processIdentifier
+- (id<FBSimulatorEventSink>)eventSink
 {
-  return _processIdentifier > 1 ? _processIdentifier : [self inferredProcessIdentifier];
+  return self.mutableState;
 }
 
-- (void)setProcessIdentifier:(NSInteger)processIdentifier
+- (id<FBSimulatorEventSink>)userEventSink
 {
-  _processIdentifier = processIdentifier;
+  return self.mutableSink.eventSink;
 }
 
-#pragma mark Helpers
-
-+ (FBSimulatorState)simulatorStateFromStateString:(NSString *)stateString
+- (void)setUserEventSink:(id<FBSimulatorEventSink>)userEventSink
 {
-  stateString = [stateString lowercaseString];
-  if ([stateString isEqualToString:@"creating"]) {
-    return FBSimulatorStateCreating;
-  }
-  if ([stateString isEqualToString:@"shutdown"]) {
-    return FBSimulatorStateShutdown;
-  }
-  if ([stateString isEqualToString:@"booting"]) {
-    return FBSimulatorStateBooting;
-  }
-  if ([stateString isEqualToString:@"booted"]) {
-    return FBSimulatorStateBooted;
-  }
-  if ([stateString isEqualToString:@"creating"]) {
-    return FBSimulatorStateCreating;
-  }
-  if ([stateString isEqualToString:@"shutting down"]) {
-    return FBSimulatorStateCreating;
-  }
-  return FBSimulatorStateUnknown;
+  self.mutableSink.eventSink = userEventSink;
 }
 
-+ (NSString *)stateStringFromSimulatorState:(FBSimulatorState)state
+- (FBAppleSimctlCommandExecutor *)simctlExecutor
 {
-  switch (state) {
-    case FBSimulatorStateCreating:
-      return @"Creating";
-    case FBSimulatorStateShutdown:
-      return @"Shutdown";
-    case FBSimulatorStateBooting:
-      return @"Booting";
-    case FBSimulatorStateBooted:
-      return @"Booted";
-    case FBSimulatorStateShuttingDown:
-      return @"Shutting Down";
-    default:
-      return @"Unknown";
-  }
+  return [FBAppleSimctlCommandExecutor executorForSimulator:self];
 }
 
-- (BOOL)waitOnState:(FBSimulatorState)state
+- (NSString *)coreSimulatorLogsDirectory
 {
-  return [self waitOnState:state timeout:FBSimulatorDefaultTimeout];
-}
-
-- (BOOL)waitOnState:(FBSimulatorState)state timeout:(NSTimeInterval)timeout
-{
-  return [NSRunLoop.currentRunLoop spinRunLoopWithTimeout:timeout untilTrue:^ BOOL {
-    return self.state == state;
-  }];
+  return [[NSHomeDirectory()
+    stringByAppendingPathComponent:@"Library/Logs/CoreSimulator"]
+    stringByAppendingPathComponent:self.udid];
 }
 
 #pragma mark NSObject
@@ -193,137 +268,94 @@ NSTimeInterval const FBSimulatorDefaultTimeout = 20;
   return [self.device isEqual:simulator.device];
 }
 
-- (NSString *)description
-{
-  return [NSString stringWithFormat:
-    @"Name %@ | UUID %@ | State %@",
-    self.name,
-    self.udid,
-    self.device.stateString
-  ];
-}
-
-#pragma mark Private
-
-- (NSInteger)inferredProcessIdentifier
-{
-  // It's possible to find Simulators that have been launched with 'CurrentDeviceUDID' but not otherwise.
-  // Simulators launched via Xcode have some sort of token with an argument such as '-psn_0_2466394'.
-  // Finding these Simulators is currently unimplemented.
-  NSString *expectedArgument = [NSString stringWithFormat:@"CurrentDeviceUDID %@", self.udid];
-  NSInteger processIdentifier = [[[[FBTaskExecutor.sharedInstance
-    taskWithLaunchPath:@"/usr/bin/pgrep" arguments:@[@"-f", expectedArgument]]
-    startSynchronouslyWithTimeout:5]
-    stdOut]
-    integerValue];
-
-  if (processIdentifier < 1) {
-    return -1;
-  }
-  return processIdentifier;
-}
-
-@end
-
-@implementation FBManagedSimulator
-
-@synthesize configuration = _configuration;
-
-+ (instancetype)inflateFromSimDevice:(SimDevice *)device configuration:(FBSimulatorControlConfiguration *)configuration
-{
-  NSRegularExpression *regex = [FBManagedSimulator managedSimulatorPoolOffsetRegex:configuration];
-  NSTextCheckingResult *result = [regex firstMatchInString:device.name options:0 range:NSMakeRange(0, device.name.length)];
-  if (result.range.length == 0) {
-    return nil;
-  }
-
-  NSInteger bucketID = [[device.name substringWithRange:[result rangeAtIndex:1]] integerValue];
-  NSInteger offset = [[device.name substringWithRange:[result rangeAtIndex:2]] integerValue];
-
-  FBManagedSimulator *simulator = [FBManagedSimulator new];
-  simulator.device = device;
-  simulator.bucketID = bucketID;
-  simulator.offset = offset;
-  return simulator;
-}
-
-#pragma mark Accessors
-
-- (BOOL)isAllocated
-{
-  if (!self.pool) {
-    return NO;
-  }
-  return [self.pool.allocatedSimulators containsObject:self];
-}
-
-- (void)setConfiguration:(FBSimulatorConfiguration *)configuration
-{
-  _configuration = configuration;
-}
-
-- (FBSimulatorConfiguration *)configuration
-{
-  return _configuration ?: [self inferredSimulatorConfiguration];
-}
-
-#pragma mark Interactions
-
-- (BOOL)freeFromPoolWithError:(NSError **)error
-{
-  NSParameterAssert(self.pool);
-  NSParameterAssert(self.isAllocated);
-  return [self.pool freeSimulator:self error:error];
-}
-
-#pragma mark NSObject
-
-- (BOOL)isEqual:(FBManagedSimulator *)simulator
-{
-  return [super isEqual:simulator] &&
-         self.bucketID == simulator.bucketID &&
-         self.offset == simulator.offset;
-}
-
-- (NSUInteger)hash
-{
-  return [super hash] | self.bucketID >> 1 | self.offset >> 2;
-}
+#pragma mark FBDebugDescribeable
 
 - (NSString *)description
 {
-  return [NSString stringWithFormat:
-    @"%@ | Bucket %ld | Offset %ld",
-    [super description],
-    self.bucketID,
-    self.offset
-  ];
+  return [self debugDescription];
 }
 
-#pragma mark Private
-
-- (FBSimulatorConfiguration *)inferredSimulatorConfiguration
+- (NSString *)debugDescription
 {
-  return [[FBSimulatorConfiguration.defaultConfiguration withDeviceType:self.device.deviceType] withRuntime:self.device.runtime];
+  return [FBiOSTargetFormat.fullFormat format:self];
 }
 
-+ (NSRegularExpression *)managedSimulatorPoolOffsetRegex:(FBSimulatorControlConfiguration *)configuration
+- (NSString *)shortDescription
+{
+  return [FBiOSTargetFormat.defaultFormat format:self];
+}
+
+#pragma mark FBJSONSerializable
+
+- (NSDictionary *)jsonSerializableRepresentation
+{
+  return [FBiOSTargetFormat.fullFormat extractFrom:self];
+}
+
+#pragma mark Forwarding
+
+- (id)forwardingTargetForSelector:(SEL)selector
+{
+  return [self.forwarder forwardingTargetForSelector:selector];
+}
+
+- (void)forwardInvocation:(NSInvocation *)invocation
+{
+  [self.forwarder forwardInvocation:invocation];
+}
+
++ (NSArray<Class> *)commandResponders
 {
   static dispatch_once_t onceToken;
-  static NSMutableDictionary *regexDictionary;
+  static NSArray<Class> *commandClasses;
   dispatch_once(&onceToken, ^{
-    regexDictionary = [NSMutableDictionary dictionary];
+    commandClasses = @[
+      FBInstrumentsCommands.class,
+      FBSimulatorAgentCommands.class,
+      FBSimulatorApplicationCommands.class,
+      FBSimulatorApplicationDataCommands.class,
+      FBSimulatorBridgeCommands.class,
+      FBSimulatorCrashLogCommands.class,
+      FBSimulatorDebuggerCommands.class,
+      FBSimulatorKeychainCommands.class,
+      FBSimulatorLaunchCtlCommands.class,
+      FBSimulatorLifecycleCommands.class,
+      FBSimulatorLogCommands.class,
+      FBSimulatorMediaCommands.class,
+      FBSimulatorScreenshotCommands.class,
+      FBSimulatorSettingsCommands.class,
+      FBSimulatorVideoRecordingCommands.class,
+      FBSimulatorXCTestCommands.class,
+    ];
   });
+  return commandClasses;
+}
 
-  if (!regexDictionary[configuration]) {
-    NSString *regexString = [NSString stringWithFormat:@"%@_(\\d+)_(\\d+)", configuration.namePrefix];
-    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:regexString options:0 error:nil];
-    NSAssert(regex, @"Regex '%@' for '%@' should compile", regexString, NSStringFromSelector(_cmd));
-    regexDictionary[configuration] = regex;
-    return regex;
+#pragma mark Private
+
++ (NSString *)auxillaryDirectoryFromSimDevice:(SimDevice *)device configuration:(FBSimulatorConfiguration *)configuration
+{
+  if (!configuration.auxillaryDirectory) {
+    return [device.dataPath stringByAppendingPathComponent:@"fbsimulatorcontrol"];
   }
+  return [configuration.auxillaryDirectory stringByAppendingPathComponent:device.UDID.UUIDString];
+}
 
-  return regexDictionary[configuration];
++ (NSSet<Class> *)statefulCommands
+{
+  static dispatch_once_t onceToken;
+  static NSSet<Class> *statefulCommands;
+  dispatch_once(&onceToken, ^{
+    statefulCommands = [NSSet setWithArray:@[
+      FBSimulatorCrashLogCommands.class,
+      FBSimulatorLifecycleCommands.class,
+      FBSimulatorScreenshotCommands.class,
+      FBSimulatorVideoRecordingCommands.class,
+    ]];
+  });
+  return statefulCommands;
 }
 
 @end
+
+#pragma clang diagnostic pop

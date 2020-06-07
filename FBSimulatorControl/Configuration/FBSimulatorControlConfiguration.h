@@ -1,72 +1,73 @@
-/**
- * Copyright (c) 2015-present, Facebook, Inc.
- * All rights reserved.
+/*
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import <Foundation/Foundation.h>
 
-@class FBSimulatorApplication;
+#import <FBControlCore/FBControlCore.h>
+
+NS_ASSUME_NONNULL_BEGIN
 
 /**
- The default prefix for Pool-Managed Simulators
+ Options that apply to each FBSimulatorControl instance.
  */
-extern NSString *const FBSimulatorControlConfigurationDefaultNamePrefix;
-
 typedef NS_OPTIONS(NSUInteger, FBSimulatorManagementOptions){
-  FBSimulatorManagementOptionsDeleteManagedSimulatorsOnFirstStart = 1 << 0,
-  FBSimulatorManagementOptionsKillUnmanagedSimulatorsOnFirstStart = 1 << 1,
-  FBSimulatorManagementOptionsDeleteOnFree = 1 << 2,
-  FBSimulatorManagementOptionsEraseOnFree = 1 << 3,
+  FBSimulatorManagementOptionsDeleteAllOnFirstStart = 1 << 0, /** Deletes all of the devices in the pool, upon creation of the Pool */
+  FBSimulatorManagementOptionsKillAllOnFirstStart = 1 << 1, /** Kills all of the devices in the pool, upon creation of the Pool */
+  FBSimulatorManagementOptionsKillSpuriousSimulatorsOnFirstStart = 1 << 2, /** Kills all Simulators not managed by FBSimulatorControl when creating a Pool */
+  FBSimulatorManagementOptionsIgnoreSpuriousKillFail = 1 << 3, /** Don't fail Pool creation when failing to kill spurious Simulators */
+  FBSimulatorManagementOptionsKillSpuriousCoreSimulatorServices = 1 << 4, /** Kills CoreSimulatorService daemons from the non-current Xcode version when creating a Pool */
 };
 
 /**
  A Value object with the information required to create a Simulator Pool.
  */
-@interface FBSimulatorControlConfiguration : NSObject<NSCopying>
+@interface FBSimulatorControlConfiguration : NSObject <NSCopying, FBJSONSerializable, FBDebugDescribeable>
 
 /**
  Creates and returns a new Configuration with the provided parameters.
 
- @param simulatorApplication the FBSimulatorApplication for the Simulator.app.
- @param namePrefix the String to prefix all `FBSimulatorControl` managed Simulators with. Will default to 'E2E' if nil.
- @param bucketID the Bucket of the launched Simulators. Multiple processes cannot share the same Bucket ID.
  @param options the options for Simulator Management.
- @returns a new Configuration Object with the arguments applied.
+ @param deviceSetPath the Path to the Device Set. If nil, the default Device Set will be used.
+ @return a new Configuration Object with the arguments applied.
  */
-+ (instancetype)configurationWithSimulatorApplication:(FBSimulatorApplication *)simulatorApplication
-                                        deviceSetPath:(NSString *)deviceSetPath
-                                           namePrefix:(NSString *)namePrefix
-                                               bucket:(NSInteger)bucketID
-                                              options:(FBSimulatorManagementOptions)options;
-
-/**
- The FBSimulatorApplication for the Simulator.app.
- */
-@property (nonatomic, copy, readonly) FBSimulatorApplication *simulatorApplication;
++ (instancetype)configurationWithDeviceSetPath:(nullable NSString *)deviceSetPath options:(FBSimulatorManagementOptions)options logger:(nullable id<FBControlCoreLogger>)logger reporter:(nullable id<FBEventReporter>)reporter;
 
 /**
  The Location of the SimDeviceSet. If no path is provided, the default device set will be used.
  */
-@property (nonatomic, copy, readonly) NSString *deviceSetPath;
+@property (nonatomic, copy, nullable, readonly) NSString *deviceSetPath;
 
 /**
- The String to prefix all `FBSimulatorControl` Simulators with.
- Simulators in the same Pool will share the same `namePrefix` and `bucketID`.
- */
-@property (nonatomic, copy, readonly) NSString *namePrefix;
-
-/**
- The Bucket of the launched Simulators. Multiple processes cannot share the same Bucket ID.
- */
-@property (nonatomic, assign, readonly) NSInteger bucketID;
-
-/**
- The options for Simulator Management.
+ The Options for Simulator Management.
  */
 @property (nonatomic, assign, readonly) FBSimulatorManagementOptions options;
 
+/**
+ The Logger to use for logging.
+ */
+@property (nonatomic, strong, nullable, readonly) id<FBControlCoreLogger> logger;
+
+/**
+ The Event Reporter to use for reporting events.
+ */
+@property (nonatomic, strong, nullable, readonly) id<FBEventReporter> reporter;
+
 @end
+
+/**
+ Global CoreSimulatorConfiguration
+ */
+@interface FBSimulatorControlConfiguration (Helpers)
+
+/**
+ The Location of the Default SimDeviceSet
+ */
++ (NSString *)defaultDeviceSetPath;
+
+@end
+
+NS_ASSUME_NONNULL_END

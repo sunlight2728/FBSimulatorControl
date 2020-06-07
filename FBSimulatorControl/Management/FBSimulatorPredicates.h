@@ -1,56 +1,50 @@
-/**
- * Copyright (c) 2015-present, Facebook, Inc.
- * All rights reserved.
+/*
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import <Foundation/Foundation.h>
 
-@class FBSimulator;
-@class FBSimulatorPool;
+#import <FBControlCore/FBControlCore.h>
+
+#import <FBSimulatorControl/FBSimulator.h>
+
+NS_ASSUME_NONNULL_BEGIN
+
+@class FBSimulatorConfiguration;
 
 /**
- Predicates for filtering the sets of available Simulators.
+ Predicates for filtering collections of available Simulators.
  NSCompoundPredicate can be used to compose Predicates.
+ All Prediates operate on collections of FBSimulator instances.
  */
-@interface FBSimulatorPredicates : NSObject
-
-/**
- Predicate for Simulators that are managed by any Pool.
- */
-+ (NSPredicate *)managed;
-
-/**
- Predicate for Simulators that are managed by a specific Pool.
- */
-+ (NSPredicate *)managedByPool:(FBSimulatorPool *)pool;
-
-/**
- Predicate for Simulators that are allocated in a specific Pool.
- */
-+ (NSPredicate *)allocatedByPool:(FBSimulatorPool *)pool;
-
-/**
- Predicate for Simulators that are managed by a pool but not allocated.
- */
-+ (NSPredicate *)unallocatedByPool:(FBSimulatorPool *)pool;
-
-/**
- Predicate for Simulators that are not managed by any Pool.
- */
-+ (NSPredicate *)unmanaged;
+@interface FBSimulatorPredicates : FBiOSTargetPredicates
 
 /**
  Predicate for Simulators that are launched.
+
+ @return an NSPredicate.
  */
 + (NSPredicate *)launched;
 
 /**
- Predicate for only the provided Simulator.
+ Predicate for matching Simulators against a Configuration.
+
+ @param configuration the configuration to match against.
+ @return an NSPredicate.
  */
-+ (NSPredicate *)only:(FBSimulator *)simulator;
++ (NSPredicate *)configuration:(FBSimulatorConfiguration *)configuration;
+
+/**
+ Predicate for matching any of the provided configurations against a Simulator.
+
+ @param configurations the configuration to match against.
+ @return an NSPredicate.
+ */
++ (NSPredicate *)configurations:(NSArray<FBSimulatorConfiguration *> *)configurations;
 
 @end
+
+NS_ASSUME_NONNULL_END

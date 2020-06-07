@@ -1,81 +1,131 @@
-# FBSimulatorControl
-A Mac OS X library for managing, booting and interacting with multiple iOS Simulators simultaneously.
+# idb
 
-[![Build Status](https://travis-ci.org/facebook/FBSimulatorControl.svg?branch=master)](https://travis-ci.org/facebook/FBSimulatorControl)
+![idb logo](docs/assets/idb_logo_color.jpg)
 
-## Features
-- Boots multiple iOS Simulators within the same host process or across processes.
-- Does not have to be run from Xcode/`xcodebuild`. Simulators can be launched by a process that has not been spawned by Xcode.
-- `NSNotification`s for the lifecycle of the Simulator and the user-launched processes.
-- Boots Simulators across iOS 7, 8 & 9.
-- Launching and switching between multiple Apps.
-- Project has no external dependencies.
-- Launch Applications and Agents with [Command Line Arguments](FBSimulatorControl/Configuration/FBProcessLaunchConfiguration.h#L24) and [Environment Variables](FBSimulatorControl/Configuration/FBProcessLaunchConfiguration.h#L29).
-- APIs for [launching diagnostic utilities](FBSimulatorControl/Session/FBSimulatorSessionInteraction%2BDiagnostics.h) and attaching output to a Simulator session.
-- BFFs with [`WebDriverAgent`](https://github.com/facebook/webdriveragent).
+The “iOS Development Bridge” or `idb`, is a command line interface for automating iOS Simulators and Devices for development. It has three main goals:
 
-## About
-The original use-case for `FBSimulatorControl` was to boot Simulators to run End-to-End tests with `WebDriverAgent`. As `FBSimulatorControl` is a Mac OS X framework, it can be linked to from inside any Mac OS Library, Application, or `xctest` target. There may be additional use-cases that you may find beyond UI Test Automation.
+* *Remote Automation*: `idb` is composed of a "companion" that runs on macOS and a python client that can run anywhere. This enables scenarios such as a "Device Lab" within a Data Center or fanning out shards of test executions to a large pool of iOS Simulators.
+* *Simple Primitives*: `idb` exposes granular commands so that sophisticated workflows can be sequenced on top of them. This means you can use `idb` from an IDE or build an automated testing scenario that isn't feasible with default tooling. All of these primitives aim to be consistent across iOS versions and between iOS Simulators and iOS Devices. All the primitives are exposed over a cli, so that it easy to use for both humans and automation.
+* *Exposing missing functionality*: Xcode has a number of features that aren't available outside it's user interface. `idb` leverages many of Private Frameworks that are used by Xcode, so that these features can be in GUI-less automated scenarios.
 
-`FBSimulatorControl` works by linking with the private `DVTFoundation`, `CoreSimulator` and `DVTiPhoneSimulatorRemoteClient` frameworks that are present inside the Xcode bundle. Doing this allows  `FBSimulatorControl` to talk directly to the same APIs that Xcode and `simctl` do. This, combined with launching the Simulator binaries directly, means that multiple Simulators can be launched simultaneously. Test targets can be made that don't depend on any Application targets, or that launch multiple Application targets. This enables running against pre-built and archived Application binaries, rather than a binary that is built by a Test Target.
+`idb` is built on top the `FBSimulatorControl` and `FBDeviceControl` macOS Frameworks, contained within this repository. These Frameworks can be used independently of `idb`, however `idb` is likely to provide the simplest install and the most sensible defaults for most users.
 
-## Installation
-The `FBSimulatorControl.xcodeproj` will build the `FBSimulatorControl.framework` and the `FBSimulatorControLTests.xctest` bundles as-is. The Project is checked-in to the repo.
+We've given a talk about `idb` at F8, so that you can learn more about what `idb` is and why we built it. A [recording of the talk is available here](https://developers.facebook.com/videos/2019/reliable-code-at-scale/).
 
-Once you build the `FBSimulatorControl.framework`, it can be linked into your target like any other 3rd party framework. It does however need some additional linker flags (since it relies on Private Frameworks):
+## Quick Start
 
-`FRAMEWORK_SEARCH_PATHS` should include `"$(DEVELOPER_LIBRARY_DIR)/Frameworks" "$(DEVELOPER_LIBRARY_DIR)/PrivateFrameworks" "$(DEVELOPER_DIR)/../SharedFrameworks" "$(SDKROOT)/System/Library/PrivateFrameworks" "$(OTHER_FRAMEWORKS_DIR)"`
+`idb` is made up of 2 major components, each of which needs to be installed separately.
 
+### `idb` companion
 
-`OTHER_LDFLAGS` should include `-rpath "$DEVELOPER_LIBRARY_DIR/Frameworks" -rpath "$DEVELOPER_LIBRARY_DIR/PrivateFrameworks" -rpath "$SDKROOT/System/Library/PrivateFrameworks" -rpath "$DEVELOPER_DIR/../SharedFrameworks" -rpath "$DEVELOPER_DIR/../Frameworks"`
+Each target (simulator/device) will have a companion process attached allowing `idb` to communicate remotely.
 
-## Usage
-[The tests](FBSimulatorControlTests/Tests/FBSimulatorControlApplicationLaunchTests.m#L63) should provide you with some basic guidance for getting started. Run them to see multiple-simulator launching in action.
+The `idb` companion can be installed via brew or built from [source](https://github.com/facebook/idb)
 
-To launch Safari on an iPhone 5, you can use the following:
+```
+brew tap facebook/fb
+brew install idb-companion
+```
+Note: Instructions on how to install brew can be found [here](https://brew.sh)
 
-    FBSimulatorManagementOptions options =
-      FBSimulatorManagementOptionsDeleteManagedSimulatorsOnFirstStart |
-      FBSimulatorManagementOptionsKillUnmanagedSimulatorsOnFirstStart |
-      FBSimulatorManagementOptionsDeleteOnFree;
-    
-    FBSimulatorControlConfiguration *configuration = [FBSimulatorControlConfiguration
-      configurationWithSimulatorApplication:[FBSimulatorApplication simulatorApplicationWithError:nil]
-      namePrefix:nil
-      bucket:0
-      options:options];
-    
-    FBSimulatorControl *control = [[FBSimulatorControl alloc] initWithConfiguration:configuration];
-    
-    NSError *error = nil;
-    FBSimulatorSession *session = [self.control createSessionForSimulatorConfiguration:FBSimulatorConfiguration.iPhone5 error:&error];
-    
-    FBApplicationLaunchConfiguration *appLaunch = [FBApplicationLaunchConfiguration
-      configurationWithApplication:[FBSimulatorApplication systemApplicationNamed:@"MobileSafari"]
-      arguments:@[]
-      environment:@{}];
-    
-    // System Applications can be launched directly, User applications must be installed first with `installSimulator:`
-    BOOL success = [[[session.interact
-      bootSimulator]
-      launchApplication:appLaunch]
-      performInteractionWithError:&error];
+### `idb` client
 
-For a high level overview:
-- `FBSimulatorPool` is a responsible for booting and allocating simulators.
-- `FBSimulator` is a wrapper around `SimDevice` that provides convenience methods and properties than `SimDevice` does not have.
-- `FBManagedSimulator` is an extension of `FBSimulator` that has additional semantics around Simulator Management. Simulators are launched in a 'Managed' context to avoid interference with existing Simulators on the machine.
-- `FBSimulatorSession` represents a transaction with a device. Sessions are started from `FBSimulatorPool` and terminated with the `terminateWithError:` method.
-- `FBSimulatorSessionInteraction` contains a chainable interface for building interactions with the simulator. Calling `performWithError:` will synchronously perform the chained interactions.
-- There are Configuration objects for bending many of these classes to your will.
-- `FBSimulatorSession+Convenience` provides a simpler procedural API for launching an Application and an Agent.
-- `FBSimulatorApplication` is a wrapper around Applications, you can create them for your own Apps or use `+[FBSimulatorApplication systemApplicationNamed:]` to launch System Apps.
-- `FBApplicationLaunchConfiguration` describes the launch of an Application, it's arguments and environment.
-- `FBSimulatorSessionState` provides a the current state and history of the known state of the Simulator, including the Unix Process IDs of the running Applications and Agents. You can further automate by using command line tools like [`sample(1)`](https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/sample.1.html), [`lldb(1)`](https://developer.apple.com/library/prerelease/mac/documentation/Darwin/Reference/ManPages/man1/lldb.1.html), [`heap(1)`](https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/heap.1.html) and [`instruments(1)`](https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/instruments.1.html).
-- The "Bucket ID" that a pool manages allows multiple processes to manage a subset of simulators, without interfering with the simulators created by other processes. By creating and starting Sessions in separate processes with their own buckets, allows Simulators to be run in parallel. This can be particularly beneficial for running Automated Tests in parallel, since much of the time a Simulator is idling the Host's CPU. Buckets can be re-used 
+A cli tool and python client is provided to interact with `idb`.
+
+It can be installed via pip:
+
+```
+pip3.6 install fb-idb
+```
+Note: The idb client requires python 3.6 or greater to be installed.
+
+Please refer to [fbidb.io](https://www.fbidb.io/) for detailed installation instructions and a guided tour of idb.
+
+Once installed, just run the list-targets command which will show you all the simulators installed on your system:
+
+```
+$ idb list-targets
+...
+iPhone X | 569C0F94-5D53-40D2-AF8F-F4AA5BAA7D5E | Shutdown | simulator | iOS 12.2 | x86_64 | No Companion Connected
+iPhone Xs | 2A1C6A5A-0C67-46FD-B3F5-3CB42FFB38B5 | Shutdown | simulator | iOS 12.2 | x86_64 | No Companion Connected
+iPhone Xs Max | D3CF178F-EF61-4CD3-BB3B-F5ECAD246310 | Shutdown | simulator | iOS 12.2 | x86_64 | No Companion Connected
+iPhone Xʀ | 74064851-4B98-473A-8110-225202BB86F6 | Shutdown | simulator | iOS 12.2 | x86_64 | No Companion Connected
+...
+```
+
+`list-apps` will show you all the apps installed in a simulator:
+
+```
+$ idb list-apps --udid 74064851-4B98-473A-8110-225202BB86F6
+com.apple.Maps | Maps | system | x86_64 | Not running | Not Debuggable
+com.apple.MobileSMS | MobileSMS | system | x86_64 | Not running | Not Debuggable
+com.apple.mobileslideshow | MobileSlideShow | system | x86_64 | Not running | Not Debuggable
+com.apple.mobilesafari | MobileSafari | system | x86_64 | Not running | Not Debuggable
+```
+
+`launch` will launch an application the application:
+
+```
+$ idb launch com.apple.mobilesafari
+```
+
+Head over [to the main documentation](https://www.fbidb.io) for more details on what you can do with idb and the full list of commands.
+
+## Building from Source
+
+`idb` is made up of 2 parts.
+
+To build the python part make sure you are in the root of the repo and run:
+
+```
+pip3 install .
+```
+
+To build the objective-c/c++ part:
+
+Make sure you have installed gRPC dependencies: ```brew tap grpc/grpc && brew install grpc```
+
+```
+open idb_companion.xcworkspace
+```
+
+This will open an Xcode project that you can build and run.
+
+After opening the Xcode project you will need to add a `--udid` argument for launch.
+- Get the UDID of either your device or simulator
+  - Window -> Devices and Simulators
+  - Select the device or simulator you care about
+  - Copy the value in the `Identifier` section of the header
+- Project -> Scheme -> Edit Scheme (or `cmd + <`)
+- Run -> Arguments
+- Click the `+` under the `Arguments Passed on Launch` section
+- Enter `--udid <UDID copied above>`
+- Run the `idb_companion` target on `My Mac`
+
+Once `idb_companion` has launched, search the console output for the word "port", there will be a few entries and there should be a port number on the same line. Copy that value as you will use it to attach the `idb` python client to the `idb_companion` gRPC server.
+
+```
+$ idb connect localhost <Port # from above>
+```
+
+Now you can execute any `idb` commands and it will go through the `idb_companion` started by Xcode which is now debuggable.
+
+## Documentation
+
+Find the full documentation for this project at [fbidb.io](https://www.fbidb.io/)
 
 ## Contributing
-See the [CONTRIBUTING](CONTRIBUTING) file for how to help out. There's plenty to work on the issues!
+
+We've released `idb` because it's a big part of how we scale iOS automation at Facebook. We hope that others will be able to benefit from the project where they may have needs that aren't currently serviced by the standard Xcode toolchain.
+
+## Code of Conduct
+
+Facebook has adopted a Code of Conduct that we expect project participants to adhere to. Please [read the full text](https://code.fb.com/codeofconduct) so that you can understand what actions will and will not be tolerated.
+
+## Contributing Guide
+
+Read our [contributing guide](.github/CONTRIBUTING.md) to learn about our development process.
 
 ## License
-[`FBSimulatorControl` is BSD-licensed](LICENSE). We also provide an additional [patent grant](PATENTS).
+
+[`idb` is MIT-licensed](LICENSE).
